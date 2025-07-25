@@ -20,10 +20,10 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-10T16:37:32.642993",
-    "updated_at": "2025-07-23T12:34:30.909934+00:00",
+    "updated_at": "2025-07-25T07:32:17.804199+00:00",
     "phone_numbers": [
       {
-        "id": 64,
+        "id": 83,
         "customer_id": "381dc8ff-23cd-4851-a8dd-b7d663d88ec5",
         "phone_number": "16674310361",
         "verification_id": "288430606",
@@ -60,7 +60,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-10 16:39:28.626372",
-    "updated_at": "2025-07-23T12:34:30.909934+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -90,7 +90,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-10T16:42:04.275575",
-    "updated_at": "2025-07-23T12:34:30.909934+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -120,12 +120,14 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-10 16:57:55.630217",
-    "updated_at": "2025-07-23T21:27:46.158593+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [
       {
+        "id": 84,
+        "customer_id": "59ab7416-71b8-4fc9-92cb-6e3a6a3c5862",
         "phone_number": "17209219366",
         "verification_id": "303348483",
-        "is_primary": true,
+        "is_primary": 1,
         "status": "active",
         "created_at": "2025-07-23T21:27:46.158593+00:00"
       }
@@ -158,7 +160,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-10 17:05:52.469680",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -188,7 +190,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-17 20:25:23.407774",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -218,7 +220,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-17 20:43:46.354748",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -248,7 +250,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-17 20:54:39.654639",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -278,10 +280,10 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-19 01:17:35.817733",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [
       {
-        "id": 65,
+        "id": 85,
         "customer_id": "ab178937-7084-4971-b7cd-cf0bd07548df",
         "phone_number": "14324161412",
         "verification_id": "297997356",
@@ -318,7 +320,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-19T08:48:47.941422+00:00",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -348,7 +350,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-21 13:09:58.977203",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805224+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -378,7 +380,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-21 13:45:32.435401",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -408,7 +410,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-21 14:23:56.675253",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -438,7 +440,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-21 15:08:24.995909",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -468,10 +470,10 @@
     "verification_completed": 1,
     "verification_code": "153318",
     "created_at": "2025-07-21 15:18:40.996427",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
     "phone_numbers": [
       {
-        "id": 66,
+        "id": 86,
         "customer_id": "84d41695-1507-43c9-bee1-049686838047",
         "phone_number": "13046172118",
         "verification_id": "301033457",
@@ -480,7 +482,7 @@
         "created_at": "2025-07-21T22:28:30.541080+00:00"
       },
       {
-        "id": 67,
+        "id": 87,
         "customer_id": "84d41695-1507-43c9-bee1-049686838047",
         "phone_number": "14133214010",
         "verification_id": "301056334",
@@ -491,7 +493,7 @@
     ],
     "sms_history": [
       {
-        "id": 15,
+        "id": 28,
         "customer_id": "84d41695-1507-43c9-bee1-049686838047",
         "phone_number": "14133214010",
         "sms_code": "153318",
@@ -526,7 +528,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-21 16:20:15.766787",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -556,7 +558,7 @@
     "verification_completed": 0,
     "verification_code": null,
     "created_at": "2025-07-22 17:26:31.796298",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
     "phone_numbers": [],
     "sms_history": [],
     "metadata": {
@@ -586,11 +588,11 @@
     "verification_completed": 1,
     "verification_code": "418018",
     "created_at": "2025-07-23 04:05:49.975757",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
     "phone_numbers": [],
     "sms_history": [
       {
-        "id": 16,
+        "id": 29,
         "customer_id": "5b6d865a-2262-4942-be87-f722c50c0366",
         "phone_number": "15027925993",
         "sms_code": "418018",
@@ -625,11 +627,11 @@
     "verification_completed": 1,
     "verification_code": "890402",
     "created_at": "2025-07-23 05:33:28.669740",
-    "updated_at": "2025-07-23T12:34:30.911328+00:00",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
     "phone_numbers": [],
     "sms_history": [
       {
-        "id": 17,
+        "id": 30,
         "customer_id": "aae8285a-38aa-4f7b-883d-1d7520683425",
         "phone_number": "19714767956",
         "sms_code": "890402",
@@ -641,6 +643,82 @@
       "generation_method": "faker",
       "gender_preference": "female",
       "generation_timestamp": "2025-07-23T12:33:27.064665+00:00"
+    }
+  },
+  "c2d8e582-96c5-4d11-a89c-52dd205b3c93": {
+    "customer_id": "c2d8e582-96c5-4d11-a89c-52dd205b3c93",
+    "full_name": "Rebecca Martin",
+    "first_name": "Rebecca",
+    "last_name": "Martin",
+    "email": "rmartin256@mechanicspedia.com",
+    "password": "#cP!5YKdQX2U",
+    "full_address": "7575 Washington St, Minneapolis, MN 00000",
+    "address_line1": "7575 Washington St",
+    "city": "Minneapolis",
+    "state": "MN",
+    "zip_code": "00000",
+    "latitude": 44.97902,
+    "longitude": -93.26494,
+    "address_source": "mapquest_random",
+    "address_validated": 1,
+    "primary_phone": null,
+    "primary_verification_id": null,
+    "verification_completed": 1,
+    "verification_code": "384053",
+    "created_at": "2025-07-25 00:31:09.691028",
+    "updated_at": "2025-07-25T07:32:17.805734+00:00",
+    "phone_numbers": [],
+    "sms_history": [
+      {
+        "id": 31,
+        "customer_id": "c2d8e582-96c5-4d11-a89c-52dd205b3c93",
+        "phone_number": "13322507995",
+        "sms_code": "384053",
+        "received_at": "2025-07-25T07:32:17.797513+00:00",
+        "service_used": "daisysms"
+      }
+    ],
+    "metadata": {
+      "generation_method": "faker",
+      "gender_preference": "female",
+      "generation_timestamp": "2025-07-25T07:31:07.825041+00:00"
+    }
+  },
+  "a613c8e8-c590-476a-8dbe-119d276420d2": {
+    "customer_id": "a613c8e8-c590-476a-8dbe-119d276420d2",
+    "full_name": "Katrina Cruz",
+    "first_name": "Katrina",
+    "last_name": "Cruz",
+    "email": "kcruz315@mechanicspedia.com",
+    "password": "#D3XuN4b3hb(",
+    "full_address": "5375 Washington St, San Francisco, CA 00000",
+    "address_line1": "5375 Washington St",
+    "city": "San Francisco",
+    "state": "CA",
+    "zip_code": "00000",
+    "latitude": 37.77712,
+    "longitude": -122.41966,
+    "address_source": "mapquest_random",
+    "address_validated": true,
+    "primary_phone": null,
+    "primary_verification_id": null,
+    "verification_completed": true,
+    "verification_code": "522363",
+    "created_at": "2025-07-25 00:38:06.223360",
+    "updated_at": "2025-07-25T07:38:41.205092+00:00",
+    "phone_numbers": [],
+    "sms_history": [
+      {
+        "phone_number": "17164184016",
+        "sms_code": "522363",
+        "received_at": "2025-07-25T07:38:41.198250+00:00",
+        "service_used": "daisysms"
+      }
+    ],
+    "metadata": {
+      "generation_method": "faker",
+      "gender_preference": "female",
+      "generation_timestamp": "2025-07-25T07:38:04.268865+00:00"
     }
   }
 }

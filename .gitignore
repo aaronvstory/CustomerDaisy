@@ -22,3 +22,35 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Archives and data directories
+archives/
+customer_data/
+data/
+backups/
+exports/
+
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# UV lock files (keep in repo for reproducible builds)
+# uv.lock
+
+# Configuration with sensitive data (commented out to include in export)
+# config.ini
