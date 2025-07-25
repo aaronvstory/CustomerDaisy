@@ -14,7 +14,7 @@ import logging
 import time
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -36,7 +36,7 @@ try:
     from rich.align import Align
     from rich.text import Text
     from rich.columns import Columns
-    from datetime import datetime
+    from datetime import datetime, timezone
     import time
     RICH_AVAILABLE = True
 except ImportError:
@@ -1034,7 +1034,29 @@ class CustomerDaisyApp:
         )
         
         console.print(summary_banner)        # Display recent customers with address info
-        recent_customers = sorted(customers, key=lambda x: x.get('created_at', ''), reverse=True)[:10]
+        def safe_datetime_sort_key(customer):
+            created_at = customer.get('created_at', '')
+            if isinstance(created_at, str):
+                try:
+                    # Try parsing ISO format string to datetime for proper sorting
+                    dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    # Ensure timezone aware datetime for consistent comparison
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    return dt
+                except (ValueError, AttributeError):
+                    # If parsing fails, return epoch time for consistent sorting
+                    return datetime.fromtimestamp(0, tz=timezone.utc)
+            elif isinstance(created_at, datetime):
+                # Ensure timezone aware datetime
+                if created_at.tzinfo is None:
+                    return created_at.replace(tzinfo=timezone.utc)
+                return created_at
+            else:
+                # For any other type, return epoch time
+                return datetime.fromtimestamp(0, tz=timezone.utc)
+        
+        recent_customers = sorted(customers, key=safe_datetime_sort_key, reverse=True)[:10]
         
         customer_table = Table(title="Recent Customers")
         customer_table.add_column("Name", style="cyan")
