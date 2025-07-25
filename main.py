@@ -456,8 +456,10 @@ class CustomerDaisyApp:
         # Get the customer's SMS history from database
         customer_record = self.database.get_customer_by_id(customer_data['customer_id'])
         previous_codes = []
+        sms_history = []
         if customer_record and customer_record.get('sms_history'):
-            previous_codes = [sms['sms_code'] for sms in customer_record['sms_history']]
+            sms_history = customer_record['sms_history']
+            previous_codes = [sms['sms_code'] for sms in sms_history]
         
         # Check for new SMS code
         console.print("🔍 Checking DaisySMS API...", style="yellow")
@@ -498,8 +500,20 @@ class CustomerDaisyApp:
                 self._copy_to_clipboard_manual(code, "SMS code")
                 
                 # Show previous codes if any
-                if previous_codes:
-                    previous_text = "\n".join([f"📱 {prev_code}" for prev_code in previous_codes])
+                if sms_history:
+                    previous_entries = []
+                    for entry in sms_history:
+                        # Parse the timestamp to show only time (HH:MM:SS)
+                        try:
+                            from datetime import datetime
+                            received_dt = datetime.fromisoformat(entry['received_at'].replace('Z', '+00:00'))
+                            time_str = received_dt.strftime("%H:%M:%S")
+                        except:
+                            time_str = "Unknown"
+                        
+                        previous_entries.append(f"📱 {entry['sms_code']} - {time_str}")
+                    
+                    previous_text = "\n".join(previous_entries)
                     history_panel = Panel.fit(
                         f"Previous codes:\n{previous_text}",
                         title="📜 SMS History",
@@ -512,9 +526,22 @@ class CustomerDaisyApp:
                 # Same code as before
                 self.logger.info(f"Same SMS code received again: {code} for customer {customer_data['customer_id']}")
                 
+                # Find when this code was last received
+                last_received_time = "Unknown"
+                for entry in reversed(sms_history):  # Check most recent first
+                    if entry['sms_code'] == code:
+                        try:
+                            from datetime import datetime
+                            received_dt = datetime.fromisoformat(entry['received_at'].replace('Z', '+00:00'))
+                            last_received_time = received_dt.strftime("%H:%M:%S")
+                        except:
+                            pass
+                        break
+                
                 same_code_panel = Panel.fit(
                     f"📱 Code: [yellow]{code}[/yellow]\n\n"
-                    f"ℹ️Same code as last check\n"
+                    f"ℹ️  Same code as last check\n"
+                    f"🕐 Originally received at: {last_received_time}\n"
                     f"💡 Code has been copied to clipboard again",
                     title="📱 Same SMS Code",
                     border_style="yellow",
@@ -524,6 +551,28 @@ class CustomerDaisyApp:
                 
                 # Still copy to clipboard for convenience
                 self._copy_to_clipboard_manual(code, "SMS code")
+                
+                # Show complete SMS history for context
+                if len(sms_history) > 1:
+                    all_entries = []
+                    for entry in sms_history:
+                        try:
+                            received_dt = datetime.fromisoformat(entry['received_at'].replace('Z', '+00:00'))
+                            time_str = received_dt.strftime("%H:%M:%S")
+                        except:
+                            time_str = "Unknown"
+                        
+                        marker = "➤" if entry['sms_code'] == code else "📱"
+                        all_entries.append(f"{marker} {entry['sms_code']} - {time_str}")
+                    
+                    history_text = "\n".join(all_entries)
+                    full_history_panel = Panel.fit(
+                        f"Complete SMS history:\n{history_text}\n\n➤ = Current code",
+                        title="📜 Complete SMS History",
+                        border_style="dim",
+                        padding=(1, 2)
+                    )
+                    console.print(full_history_panel)
         else:
             # No code received yet
             self.logger.info(f"No SMS code available yet for verification ID: {verification_id}")

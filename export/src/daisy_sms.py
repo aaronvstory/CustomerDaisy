@@ -278,14 +278,16 @@ class DaisySMSManager:
         
         verification_info = self.active_verifications[verification_id]
         
-        # Check if verification is already cancelled or completed
+        # Check if verification is already cancelled
         if verification_info.get('status') == 'cancelled':
             if not silent:
                 console.print(f"❌ Verification already cancelled: {verification_id}", style="red")
             return None
         
-        if verification_info.get('status') == 'completed':
-            # Return existing SMS code if already received
+        # For single-attempt checks (manual checks), always check API for new codes
+        # even if verification was previously completed - allows detection of multiple SMS codes
+        if verification_info.get('status') == 'completed' and max_attempts > 1:
+            # Return existing SMS code only for multi-attempt polling (not manual single checks)
             existing_code = verification_info.get('sms_code')
             if existing_code:
                 if not silent:
@@ -319,15 +321,21 @@ class DaisySMSManager:
                 # SMS code received
                 sms_code = response.get('data')
                 if sms_code:
-                    verification_info['status'] = 'completed'
-                    verification_info['sms_code'] = sms_code
-                    verification_info['completed_at'] = datetime.now()
+                    # For multi-attempt operations, mark as completed and close rental
+                    if max_attempts > 1:
+                        verification_info['status'] = 'completed'
+                        verification_info['sms_code'] = sms_code
+                        verification_info['completed_at'] = datetime.now()
+                        
+                        # Mark as done to free up the rental
+                        self.mark_verification_done(verification_id, silent=silent)
+                    else:
+                        # For single checks, update last received code but keep rental active
+                        verification_info['last_sms_code'] = sms_code
+                        verification_info['last_code_received_at'] = datetime.now()
                     
                     if not silent:
                         console.print(f"✅ SMS code received: {sms_code}", style="green")
-                    
-                    # Mark as done to free up the rental
-                    self.mark_verification_done(verification_id, silent=silent)
                     
                     return sms_code
             
@@ -371,29 +379,41 @@ class DaisySMSManager:
                     if len(parts) >= 2:
                         potential_code = parts[1].split(':')[0].strip()  # Get first part after colon
                         if potential_code.isdigit() and len(potential_code) >= 4:
-                            verification_info['status'] = 'completed'
-                            verification_info['sms_code'] = potential_code
-                            verification_info['completed_at'] = datetime.now()
+                            # For multi-attempt operations, mark as completed and close rental
+                            if max_attempts > 1:
+                                verification_info['status'] = 'completed'
+                                verification_info['sms_code'] = potential_code
+                                verification_info['completed_at'] = datetime.now()
+                                
+                                # Mark as done to free up the rental
+                                self.mark_verification_done(verification_id, silent=silent)
+                            else:
+                                # For single checks, update last received code but keep rental active
+                                verification_info['last_sms_code'] = potential_code
+                                verification_info['last_code_received_at'] = datetime.now()
                             
                             if not silent:
                                 console.print(f"✅ SMS code extracted: {potential_code}", style="green")
-                            
-                            # Mark as done to free up the rental
-                            self.mark_verification_done(verification_id, silent=silent)
                             
                             return potential_code
                 
                 # Also check if the status itself might be a code (direct numeric response)
                 elif parsed_status.isdigit() and len(parsed_status) >= 4:
-                    verification_info['status'] = 'completed'
-                    verification_info['sms_code'] = parsed_status
-                    verification_info['completed_at'] = datetime.now()
+                    # For multi-attempt operations, mark as completed and close rental
+                    if max_attempts > 1:
+                        verification_info['status'] = 'completed'
+                        verification_info['sms_code'] = parsed_status
+                        verification_info['completed_at'] = datetime.now()
+                        
+                        # Mark as done to free up the rental
+                        self.mark_verification_done(verification_id, silent=silent)
+                    else:
+                        # For single checks, update last received code but keep rental active
+                        verification_info['last_sms_code'] = parsed_status
+                        verification_info['last_code_received_at'] = datetime.now()
                     
                     if not silent:
                         console.print(f"✅ SMS code from status: {parsed_status}", style="green")
-                    
-                    # Mark as done to free up the rental
-                    self.mark_verification_done(verification_id, silent=silent)
                     
                     return parsed_status
                 
