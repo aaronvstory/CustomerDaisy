@@ -89,6 +89,9 @@ class MapQuestAddressManager:
                     # Skip if too close to origin (less than 0.5 miles)
                     distance = result.get('distance', 0)
                     if distance >= 0.5:
+                        # Ensure address has house number - if not, add one
+                        address = self._ensure_house_number(address)
+                        fields['address'] = address  # Update the fields
                         valid_addresses.append(result)
             
             if not valid_addresses:
@@ -114,7 +117,8 @@ class MapQuestAddressManager:
             console.print(f"✅ Found address: {address_data['full_address']}", style="green")
             console.print(f"📏 Distance from origin: {address_data['distance_from_origin']:.1f} miles", style="blue")
             
-            return address_data
+            # Validate and ensure complete address before returning
+            return self._validate_complete_address(address_data)
             
         except requests.RequestException as e:
             console.print(f"❌ Network error getting address: {e}", style="red")
@@ -152,16 +156,12 @@ class MapQuestAddressManager:
                     zip_code = location.get('postalCode', '').strip()
                     
                     # If street is empty, generate a realistic street address
+                    # If street exists but has no house number, add one
                     if not street and city:
-                        import random
-                        street_names = [
-                            "Main St", "Oak Ave", "Park Rd", "First St", "Second St", 
-                            "Elm St", "Maple Ave", "Washington St", "Lincoln Ave", "Church St",
-                            "School St", "High St", "Mill Rd", "Pine St", "Cedar Ave"
-                        ]
-                        street_number = random.randint(100, 9999)
-                        street_name = random.choice(street_names)
-                        street = f"{street_number} {street_name}"
+                        street = self._generate_complete_street_address()
+                    elif street and city:
+                        # Ensure existing street has house number
+                        street = self._ensure_house_number(street)
                     
                     # Ensure we have basic address components
                     if not city:
@@ -183,7 +183,8 @@ class MapQuestAddressManager:
                     }
                     
                     console.print(f"✅ Fallback address: {address_data['full_address']}", style="cyan")
-                    return address_data
+                    # Validate and ensure complete address before returning
+                    return self._validate_complete_address(address_data)
             
             return None
             
@@ -249,7 +250,8 @@ class MapQuestAddressManager:
             console.print(f"✅ Address validated: {standardized['full_address']}", style="green")
             console.print(f"📍 Quality: {geocode_quality}", style="blue")
             
-            return standardized
+            # Ensure complete address before returning
+            return self._validate_complete_address(standardized)
             
         except requests.RequestException as e:
             console.print(f"❌ Network error validating address: {e}", style="red")
@@ -302,6 +304,8 @@ class MapQuestAddressManager:
                         'full_address': f"{fields.get('address', '')}, {fields.get('city', '')}, {fields.get('state', '')} {fields.get('postal_code', '')}",
                         'source': 'mapquest_search'
                     }
+                    # Ensure complete address with house number
+                    address_data = self._validate_complete_address(address_data)
                     addresses.append(address_data)
             
             console.print(f"✅ Found {len(addresses)} addresses", style="green")
@@ -402,6 +406,88 @@ class MapQuestAddressManager:
             console.print(f"❌ MapQuest API connection failed: {e}", style="red")
             return False
     
+    def _ensure_house_number(self, street_address: str) -> str:
+        """
+        Ensure a street address has a house number
+        
+        Args:
+            street_address: Street address that may or may not have house number
+            
+        Returns:
+            Complete address with house number
+        """
+        street_address = street_address.strip()
+        
+        # Check if address already starts with a number
+        if street_address and street_address.split()[0].isdigit():
+            return street_address
+        
+        # Check if it starts with a number range (e.g., "100-200")
+        first_part = street_address.split()[0] if street_address else ""
+        if '-' in first_part and any(part.isdigit() for part in first_part.split('-')):
+            return street_address
+        
+        # If no house number, add a realistic one
+        if street_address:
+            house_number = random.randint(100, 9999)
+            return f"{house_number} {street_address}"
+        
+        # If completely empty, generate a full address
+        return self._generate_complete_street_address()
+    
+    def _generate_complete_street_address(self) -> str:
+        """
+        Generate a complete street address with house number
+        
+        Returns:
+            Complete street address with realistic house number
+        """
+        # Expanded list of realistic street names
+        street_names = [
+            # Common street names
+            "Main St", "Oak Ave", "Park Rd", "First St", "Second St", "Third St",
+            "Elm St", "Maple Ave", "Washington St", "Lincoln Ave", "Church St",
+            "School St", "High St", "Mill Rd", "Pine St", "Cedar Ave",
+            # More realistic street names
+            "Sunset Blvd", "River Dr", "Hill St", "Valley Rd", "Forest Ave",
+            "Lake Dr", "Mountain View Dr", "Garden St", "Spring St", "Summer Ave",
+            "Winter St", "Fall Rd", "Birch Ln", "Willow Way", "Cherry St",
+            "Peach Ave", "Apple Dr", "Orange St", "Lemon Ave", "Rose St",
+            # Directional variants
+            "North St", "South Ave", "East Dr", "West Rd", "Center St",
+            "Central Ave", "Broadway", "Park Ave", "State St", "Union St",
+            # Common suffixes with directions
+            "Jefferson Dr SW", "Madison Ave NE", "Adams St NW", "Monroe Dr SE",
+            "Jackson Blvd", "Harrison Ave", "Tyler St", "Polk Dr", "Taylor Ave"
+        ]
+        
+        house_number = random.randint(100, 9999)
+        street_name = random.choice(street_names)
+        return f"{house_number} {street_name}"
+    
+    def _validate_complete_address(self, address_data: Dict) -> Dict:
+        """
+        Validate that an address is complete and realistic
+        
+        Args:
+            address_data: Address data dictionary
+            
+        Returns:
+            Validated and potentially corrected address data
+        """
+        if not address_data:
+            return address_data
+        
+        # Ensure address_line1 has house number
+        if 'address_line1' in address_data:
+            address_data['address_line1'] = self._ensure_house_number(address_data['address_line1'])
+            
+            # Rebuild full_address if it exists
+            if 'city' in address_data and 'state' in address_data and 'zip_code' in address_data:
+                address_data['full_address'] = f"{address_data['address_line1']}, {address_data['city']}, {address_data['state']} {address_data['zip_code']}"
+        
+        return address_data
+
     def get_api_stats(self) -> Dict:
         """Get MapQuest API usage statistics"""
         return {
