@@ -37,160 +37,389 @@ class MapQuestAddressManager:
         
         console.print("🗺️ MapQuest Address Manager initialized", style="green")
     
-    def get_random_address_near_location(self, origin_address: str, radius_miles: float = 10.0) -> Optional[Dict]:
+    def _search_real_poi_near_location(self, origin_address: str, radius_miles: float) -> Optional[Dict]:
         """
-        Get a random real address near a given location using MapQuest API
+        Search for real POI (businesses, restaurants, landmarks) near a location
         
         Args:
-            origin_address: Base address to search around
-            radius_miles: Search radius in miles (default: 10)
+            origin_address: Origin location to search around
+            radius_miles: Search radius in miles
             
         Returns:
-            Dict with address components or None if failed
+            Dict with real business address or None if none found
         """
         try:
-            console.print(f"🔍 Searching for addresses near: {origin_address}", style="blue")
-            
-            # Use MapQuest Search API to find addresses in radius
+            # Use MapQuest POI Search API to find real businesses
             search_url = f"{self.base_url}/search/v2/radius"
             
-            params = {
-                'key': self.api_key,
-                'origin': origin_address,
-                'radius': radius_miles,
-                'units': 'm',  # miles
-                'maxMatches': 50,
-                'outFormat': 'json'
-            }
-            
-            response = self.session.get(search_url, params=params)
-            
-            if response.status_code != 200:
-                raise Exception(f"MapQuest API error: {response.status_code} - {response.text}")
-            
-            data = response.json()
-            search_results = data.get('searchResults', [])
-            
-            if not search_results:
-                console.print("⚠️ No addresses found in radius, trying broader search", style="yellow")
-                return self._get_fallback_address(origin_address)
-            
-            # Filter results that have complete address information
-            valid_addresses = []
-            for result in search_results:
-                fields = result.get('fields', {})
-                address = fields.get('address', '').strip()
-                city = fields.get('city', '').strip()
-                state = fields.get('state', '').strip()
-                postal_code = fields.get('postal_code', '').strip()
-                
-                # Only include addresses with all components
-                if address and city and state and postal_code:
-                    # Skip if too close to origin (less than 0.5 miles)
-                    distance = result.get('distance', 0)
-                    if distance >= 0.5:
-                        # Ensure address has house number - if not, add one
-                        address = self._ensure_house_number(address)
-                        fields['address'] = address  # Update the fields
-                        valid_addresses.append(result)
-            
-            if not valid_addresses:
-                console.print("⚠️ No valid complete addresses found", style="yellow")
-                return self._get_fallback_address(origin_address)
-            
-            # Select a random address from valid results
-            selected = random.choice(valid_addresses)
-            fields = selected['fields']
-            
-            address_data = {
-                'address_line1': fields['address'],
-                'city': fields['city'],
-                'state': fields['state'],
-                'zip_code': fields['postal_code'],
-                'full_address': f"{fields['address']}, {fields['city']}, {fields['state']} {fields['postal_code']}",
-                'latitude': selected.get('place', {}).get('geometry', {}).get('coordinates', [None, None])[1],
-                'longitude': selected.get('place', {}).get('geometry', {}).get('coordinates', [None, None])[0],
-                'distance_from_origin': selected.get('distance', 0),
-                'source': 'mapquest_radius_search'
-            }
-            
-            console.print(f"✅ Found address: {address_data['full_address']}", style="green")
-            console.print(f"📏 Distance from origin: {address_data['distance_from_origin']:.1f} miles", style="blue")
-            
-            # Validate and ensure complete address before returning
-            return self._validate_complete_address(address_data)
-            
-        except requests.RequestException as e:
-            console.print(f"❌ Network error getting address: {e}", style="red")
-            return None
-        except Exception as e:
-            console.print(f"❌ Error getting random address: {e}", style="red")
-            return None
-    
-    def _get_fallback_address(self, origin_address: str) -> Optional[Dict]:
-        """Get fallback address using geocoding if radius search fails"""
-        try:
-            # Try to geocode the origin and generate nearby address
+            # First, geocode the origin to get coordinates
             geocode_url = f"{self.base_url}/geocoding/v1/address"
-            
-            params = {
+            geocode_params = {
                 'key': self.api_key,
                 'location': origin_address,
                 'outFormat': 'json',
                 'maxResults': 1
             }
             
-            response = self.session.get(geocode_url, params=params)
+            geocode_response = self.session.get(geocode_url, params=geocode_params)
+            if geocode_response.status_code != 200:
+                console.print(f"⚠️ Geocoding failed: {geocode_response.status_code}", style="yellow")
+                return None
             
-            if response.status_code == 200:
-                data = response.json()
-                results = data.get('results', [])
-                
-                if results:
-                    location = results[0]['locations'][0]
-                    
-                    # Get the street address - if empty, generate a realistic one
-                    street = location.get('street', '').strip()
-                    city = location.get('adminArea5', '').strip()
-                    state = location.get('adminArea3', '').strip()
-                    zip_code = location.get('postalCode', '').strip()
-                    
-                    # If street is empty, generate a realistic street address
-                    # If street exists but has no house number, add one
-                    if not street and city:
-                        street = self._generate_complete_street_address()
-                    elif street and city:
-                        # Ensure existing street has house number
-                        street = self._ensure_house_number(street)
-                    
-                    # Ensure we have basic address components
-                    if not city:
-                        city = origin_address.split(',')[0].strip()
-                    if not state:
-                        state = "Unknown State"
-                    if not zip_code:
-                        zip_code = "00000"
-                    
-                    address_data = {
-                        'address_line1': street,
-                        'city': city,
-                        'state': state,
-                        'zip_code': zip_code,
-                        'full_address': f"{street}, {city}, {state} {zip_code}",
-                        'latitude': location.get('latLng', {}).get('lat'),
-                        'longitude': location.get('latLng', {}).get('lng'),
-                        'source': 'mapquest_geocoding_fallback'
+            geocode_data = geocode_response.json()
+            results = geocode_data.get('results', [])
+            if not results or not results[0].get('locations'):
+                console.print("⚠️ Could not geocode origin address", style="yellow")
+                return None
+            
+            location = results[0]['locations'][0]
+            lat_lng = location.get('latLng', {})
+            origin_lat = lat_lng.get('lat')
+            origin_lng = lat_lng.get('lng')
+            
+            if not origin_lat or not origin_lng:
+                console.print("⚠️ Could not get coordinates for origin", style="yellow")
+                return None
+            
+            # Now search for real POIs using the radius search
+            poi_request_body = {
+                "origin": {
+                    "latLng": {
+                        "lat": origin_lat,
+                        "lng": origin_lng
                     }
-                    
-                    console.print(f"✅ Fallback address: {address_data['full_address']}", style="cyan")
-                    # Validate and ensure complete address before returning
-                    return self._validate_complete_address(address_data)
+                },
+                "hostedDataList": [
+                    {"tableName": "mqap.ntpois"}  # MapQuest POI dataset with real businesses
+                ],
+                "options": {
+                    "radius": radius_miles,
+                    "units": "m",  # miles
+                    "maxMatches": 100
+                }
+            }
             
-            return None
+            headers = {'Content-Type': 'application/json'}
+            poi_response = self.session.post(search_url, 
+                                           params={'key': self.api_key}, 
+                                           json=poi_request_body,
+                                           headers=headers)
+            
+            if poi_response.status_code != 200:
+                console.print(f"⚠️ POI search failed: {poi_response.status_code}", style="yellow")
+                return None
+            
+            poi_data = poi_response.json()
+            search_results = poi_data.get('searchResults', [])
+            
+            if not search_results:
+                console.print("⚠️ No real businesses found in area", style="yellow")
+                return None
+            
+            # Filter for valid business addresses with complete information
+            valid_businesses = []
+            for result in search_results:
+                fields = result.get('fields', {})
+                
+                # Get business information
+                name = fields.get('name', '').strip()
+                address = fields.get('address', '').strip()
+                city = fields.get('city', '').strip()
+                state = fields.get('state', '').strip()
+                postal_code = fields.get('postal_code', '').strip()
+                
+                # Must have complete address information
+                if address and city and state and name:
+                    # Prefer businesses with postal codes, but don't require them
+                    if not postal_code:
+                        postal_code = location.get('postalCode', '00000')
+                    
+                    # Skip if too close to origin (less than 0.3 miles for POI)
+                    distance = result.get('distance', 0)
+                    if distance >= 0.3:
+                        valid_businesses.append(result)
+            
+            if not valid_businesses:
+                console.print("⚠️ No valid businesses with complete addresses found", style="yellow")
+                return None
+            
+            # Select a random business from valid results
+            selected_business = random.choice(valid_businesses)
+            fields = selected_business['fields']
+            
+            # Extract coordinates from the result
+            lat = fields.get('lat') or fields.get('disp_lat')
+            lng = fields.get('lng') or fields.get('disp_lng')
+            
+            business_address = {
+                'address_line1': fields.get('address', ''),
+                'city': fields.get('city', ''),
+                'state': fields.get('state', ''),
+                'zip_code': fields.get('postal_code', '00000'),
+                'full_address': f"{fields.get('address', '')}, {fields.get('city', '')}, {fields.get('state', '')} {fields.get('postal_code', '00000')}",
+                'latitude': float(lat) if lat else None,
+                'longitude': float(lng) if lng else None,
+                'distance_from_origin': selected_business.get('distance', 0),
+                'business_name': fields.get('name', ''),
+                'business_type': fields.get('group_sic_code_name', 'Business'),
+                'source': 'mapquest_real_poi'
+            }
+            
+            console.print(f"✅ Found REAL business: {business_address['business_name']}", style="green")
+            console.print(f"📍 Address: {business_address['full_address']}", style="blue")
+            console.print(f"🏢 Type: {business_address['business_type']}", style="cyan")
+            console.print(f"📏 Distance: {business_address['distance_from_origin']:.1f} miles", style="blue")
+            
+            return business_address
             
         except Exception as e:
-            console.print(f"❌ Fallback address failed: {e}", style="red")
+            console.print(f"❌ Error searching real POI: {e}", style="red")
             return None
+    
+    def get_random_address_near_location(self, origin_address: str, radius_miles: float = 10.0) -> Optional[Dict]:
+        """
+        Get a random REAL address near a given location using MapQuest POI API
+        
+        Args:
+            origin_address: Base address to search around
+            radius_miles: Search radius in miles (default: 10)
+            
+        Returns:
+            Dict with REAL address components or None if failed
+        """
+        try:
+            console.print(f"🔍 Searching for REAL businesses/places near: {origin_address}", style="blue")
+            
+            # First try POI search for real businesses
+            real_address = self._search_real_poi_near_location(origin_address, radius_miles)
+            if real_address:
+                return real_address
+            
+            # Fallback to broader POI search
+            console.print("⚠️ Expanding search for real addresses...", style="yellow")
+            real_address = self._search_real_poi_near_location(origin_address, radius_miles * 2)
+            if real_address:
+                return real_address
+            
+            # Final fallback to nationwide real business search
+            console.print("🌎 Searching nationwide for real business addresses...", style="yellow")
+            return self._get_real_business_fallback(origin_address)
+            
+        except requests.RequestException as e:
+            console.print(f"❌ Network error getting real address: {e}", style="red")
+            return self._get_real_business_fallback(origin_address)
+        except Exception as e:
+            console.print(f"❌ Error getting real address: {e}", style="red")
+            return self._get_real_business_fallback(origin_address)
+    
+    def _get_real_business_fallback(self, origin_address: str = None) -> Optional[Dict]:
+        """
+        Get real business address fallback - searches for real businesses nationwide
+        NEVER generates fake addresses
+        """
+        try:
+            console.print("🏢 Searching for real businesses nationwide...", style="cyan")
+            
+            # List of major US metropolitan areas with high business density
+            major_metro_areas = [
+                {"city": "New York", "state": "NY", "lat": 40.7128, "lng": -74.0060},
+                {"city": "Los Angeles", "state": "CA", "lat": 34.0522, "lng": -118.2437},
+                {"city": "Chicago", "state": "IL", "lat": 41.8781, "lng": -87.6298},
+                {"city": "Houston", "state": "TX", "lat": 29.7604, "lng": -95.3698},
+                {"city": "Phoenix", "state": "AZ", "lat": 33.4484, "lng": -112.0740},
+                {"city": "Philadelphia", "state": "PA", "lat": 39.9526, "lng": -75.1652},
+                {"city": "San Antonio", "state": "TX", "lat": 29.4241, "lng": -98.4936},
+                {"city": "San Diego", "state": "CA", "lat": 32.7157, "lng": -117.1611},
+                {"city": "Dallas", "state": "TX", "lat": 32.7767, "lng": -96.7970},
+                {"city": "San Jose", "state": "CA", "lat": 37.3382, "lng": -121.8863},
+                {"city": "Austin", "state": "TX", "lat": 30.2672, "lng": -97.7431},
+                {"city": "Jacksonville", "state": "FL", "lat": 30.3322, "lng": -81.6557},
+                {"city": "San Francisco", "state": "CA", "lat": 37.7749, "lng": -122.4194},
+                {"city": "Indianapolis", "state": "IN", "lat": 39.7684, "lng": -86.1581},
+                {"city": "Columbus", "state": "OH", "lat": 39.9612, "lng": -82.9988},
+                {"city": "Fort Worth", "state": "TX", "lat": 32.7555, "lng": -97.3308},
+                {"city": "Charlotte", "state": "NC", "lat": 35.2271, "lng": -80.8431},
+                {"city": "Seattle", "state": "WA", "lat": 47.6062, "lng": -122.3321},
+                {"city": "Denver", "state": "CO", "lat": 39.7392, "lng": -104.9903},
+                {"city": "Boston", "state": "MA", "lat": 42.3601, "lng": -71.0589}
+            ]
+            
+            # Try multiple metro areas to find real businesses
+            random.shuffle(major_metro_areas)
+            
+            for metro in major_metro_areas[:5]:  # Try up to 5 different metros
+                console.print(f"🔍 Searching for businesses in {metro['city']}, {metro['state']}...", style="blue")
+                
+                # Search for real POIs in this metro area
+                search_url = f"{self.base_url}/search/v2/radius"
+                
+                poi_request_body = {
+                    "origin": {
+                        "latLng": {
+                            "lat": metro['lat'],
+                            "lng": metro['lng']
+                        }
+                    },
+                    "hostedDataList": [
+                        {"tableName": "mqap.ntpois"}  # Real POI database
+                    ],
+                    "options": {
+                        "radius": 25,  # 25 mile radius from city center
+                        "units": "m",
+                        "maxMatches": 150
+                    }
+                }
+                
+                headers = {'Content-Type': 'application/json'}
+                response = self.session.post(search_url, 
+                                           params={'key': self.api_key}, 
+                                           json=poi_request_body,
+                                           headers=headers)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    search_results = data.get('searchResults', [])
+                    
+                    if search_results:
+                        # Filter for businesses with complete address information
+                        valid_businesses = []
+                        for result in search_results:
+                            fields = result.get('fields', {})
+                            
+                            name = fields.get('name', '').strip()
+                            address = fields.get('address', '').strip()
+                            city = fields.get('city', '').strip()
+                            state = fields.get('state', '').strip()
+                            
+                            # Must have complete business information
+                            if name and address and city and state:
+                                valid_businesses.append(result)
+                        
+                        if valid_businesses:
+                            # Select a random real business
+                            selected = random.choice(valid_businesses)
+                            fields = selected['fields']
+                            
+                            # Extract coordinates
+                            lat = fields.get('lat') or fields.get('disp_lat')
+                            lng = fields.get('lng') or fields.get('disp_lng')
+                            
+                            real_business = {
+                                'address_line1': fields.get('address', ''),
+                                'city': fields.get('city', ''),
+                                'state': fields.get('state', ''),
+                                'zip_code': fields.get('postal_code', '00000'),
+                                'full_address': f"{fields.get('address', '')}, {fields.get('city', '')}, {fields.get('state', '')} {fields.get('postal_code', '00000')}",
+                                'latitude': float(lat) if lat else None,
+                                'longitude': float(lng) if lng else None,
+                                'business_name': fields.get('name', ''),
+                                'business_type': fields.get('group_sic_code_name', 'Business'),
+                                'source': 'mapquest_nationwide_poi_fallback'
+                            }
+                            
+                            console.print(f"✅ Found REAL business nationwide: {real_business['business_name']}", style="green")
+                            console.print(f"📍 Address: {real_business['full_address']}", style="blue")
+                            console.print(f"🏢 Type: {real_business['business_type']}", style="cyan")
+                            
+                            return real_business
+            
+            # If still no results, return well-known landmark addresses
+            console.print("🏛️ Using well-known landmark addresses as final fallback...", style="yellow")
+            return self._get_landmark_address()
+            
+        except Exception as e:
+            console.print(f"❌ Real business fallback failed: {e}", style="red")
+            return self._get_landmark_address()
+    
+    def _get_landmark_address(self) -> Optional[Dict]:
+        """
+        Get well-known landmark addresses as absolute final fallback
+        These are guaranteed real addresses that exist
+        """
+        # Well-known real addresses that definitely exist
+        landmarks = [
+            {
+                'address_line1': '1600 Pennsylvania Avenue NW',
+                'city': 'Washington',
+                'state': 'DC',
+                'zip_code': '20500',
+                'latitude': 38.8977,
+                'longitude': -77.0365,
+                'business_name': 'The White House',
+                'business_type': 'Government Building'
+            },
+            {
+                'address_line1': '350 5th Ave',
+                'city': 'New York',
+                'state': 'NY', 
+                'zip_code': '10118',
+                'latitude': 40.7484,
+                'longitude': -73.9857,
+                'business_name': 'Empire State Building',
+                'business_type': 'Landmark Building'
+            },
+            {
+                'address_line1': '1 Infinite Loop',
+                'city': 'Cupertino',
+                'state': 'CA',
+                'zip_code': '95014',
+                'latitude': 37.3318,
+                'longitude': -122.0312,
+                'business_name': 'Apple Park',
+                'business_type': 'Corporate Headquarters'
+            },
+            {
+                'address_line1': '1060 W Addison St',
+                'city': 'Chicago',
+                'state': 'IL',
+                'zip_code': '60613',
+                'latitude': 41.9484,
+                'longitude': -87.6553,
+                'business_name': 'Wrigley Field',
+                'business_type': 'Sports Stadium'
+            },
+            {
+                'address_line1': '1 Microsoft Way',
+                'city': 'Redmond',
+                'state': 'WA',
+                'zip_code': '98052',
+                'latitude': 47.6394,
+                'longitude': -122.1288,
+                'business_name': 'Microsoft Corporation',
+                'business_type': 'Corporate Headquarters'
+            },
+            {
+                'address_line1': '11 Wall Street',
+                'city': 'New York',
+                'state': 'NY',
+                'zip_code': '10005',
+                'latitude': 40.7074,
+                'longitude': -74.0113,
+                'business_name': 'New York Stock Exchange',
+                'business_type': 'Financial Institution'
+            }
+        ]
+        
+        selected_landmark = random.choice(landmarks)
+        
+        # Format the address data
+        address_data = {
+            'address_line1': selected_landmark['address_line1'],
+            'city': selected_landmark['city'],
+            'state': selected_landmark['state'],
+            'zip_code': selected_landmark['zip_code'],
+            'full_address': f"{selected_landmark['address_line1']}, {selected_landmark['city']}, {selected_landmark['state']} {selected_landmark['zip_code']}",
+            'latitude': selected_landmark['latitude'],
+            'longitude': selected_landmark['longitude'],
+            'business_name': selected_landmark['business_name'],
+            'business_type': selected_landmark['business_type'],
+            'source': 'mapquest_landmark_fallback'
+        }
+        
+        console.print(f"🏛️ Using landmark address: {address_data['business_name']}", style="magenta")
+        console.print(f"📍 Address: {address_data['full_address']}", style="blue")
+        
+        return address_data
     
     def validate_address(self, address: str) -> Optional[Dict]:
         """
@@ -262,58 +491,104 @@ class MapQuestAddressManager:
     
     def search_addresses(self, query: str, max_results: int = 10) -> List[Dict]:
         """
-        Search for addresses matching a query
+        Search for REAL addresses matching a query using POI data
         
         Args:
             query: Search query (partial address, city, etc.)
             max_results: Maximum number of results
             
         Returns:
-            List of matching addresses
+            List of matching REAL addresses from businesses/POI
         """
         try:
-            console.print(f"🔍 Searching addresses for: {query}", style="blue")
+            console.print(f"🔍 Searching REAL addresses for: {query}", style="blue")
             
-            search_url = f"{self.base_url}/search/v2/structured"
-            
-            params = {
+            # First try geocoding the query to get coordinates
+            geocode_url = f"{self.base_url}/geocoding/v1/address"
+            geocode_params = {
                 'key': self.api_key,
                 'location': query,
                 'outFormat': 'json',
-                'maxMatches': max_results
+                'maxResults': 1
             }
             
-            response = self.session.get(search_url, params=params)
+            geocode_response = self.session.get(geocode_url, params=geocode_params)
             
-            if response.status_code != 200:
-                raise Exception(f"MapQuest API error: {response.status_code}")
-            
-            data = response.json()
-            search_results = data.get('searchResults', [])
-            
-            addresses = []
-            for result in search_results:
-                fields = result.get('fields', {})
+            if geocode_response.status_code == 200:
+                geocode_data = geocode_response.json()
+                results = geocode_data.get('results', [])
                 
-                if fields.get('address') and fields.get('city'):
-                    address_data = {
-                        'address_line1': fields.get('address', ''),
-                        'city': fields.get('city', ''),
-                        'state': fields.get('state', ''),
-                        'zip_code': fields.get('postal_code', ''),
-                        'full_address': f"{fields.get('address', '')}, {fields.get('city', '')}, {fields.get('state', '')} {fields.get('postal_code', '')}",
-                        'source': 'mapquest_search'
-                    }
-                    # Ensure complete address with house number
-                    address_data = self._validate_complete_address(address_data)
-                    addresses.append(address_data)
+                if results and results[0].get('locations'):
+                    location = results[0]['locations'][0]
+                    lat_lng = location.get('latLng', {})
+                    
+                    if lat_lng.get('lat') and lat_lng.get('lng'):
+                        # Search for real POIs near the geocoded location
+                        search_url = f"{self.base_url}/search/v2/radius"
+                        
+                        poi_request_body = {
+                            "origin": {
+                                "latLng": {
+                                    "lat": lat_lng['lat'],
+                                    "lng": lat_lng['lng']
+                                }
+                            },
+                            "hostedDataList": [
+                                {"tableName": "mqap.ntpois"}
+                            ],
+                            "options": {
+                                "radius": 15,  # 15 mile radius
+                                "units": "m",
+                                "maxMatches": max_results * 2  # Get more results to filter
+                            }
+                        }
+                        
+                        headers = {'Content-Type': 'application/json'}
+                        poi_response = self.session.post(search_url, 
+                                                       params={'key': self.api_key}, 
+                                                       json=poi_request_body,
+                                                       headers=headers)
+                        
+                        if poi_response.status_code == 200:
+                            poi_data = poi_response.json()
+                            search_results = poi_data.get('searchResults', [])
+                            
+                            addresses = []
+                            for result in search_results[:max_results]:
+                                fields = result.get('fields', {})
+                                
+                                # Must have business name and address
+                                if fields.get('name') and fields.get('address') and fields.get('city'):
+                                    lat = fields.get('lat') or fields.get('disp_lat')
+                                    lng = fields.get('lng') or fields.get('disp_lng')
+                                    
+                                    address_data = {
+                                        'address_line1': fields.get('address', ''),
+                                        'city': fields.get('city', ''),
+                                        'state': fields.get('state', ''),
+                                        'zip_code': fields.get('postal_code', '00000'),
+                                        'full_address': f"{fields.get('address', '')}, {fields.get('city', '')}, {fields.get('state', '')} {fields.get('postal_code', '00000')}",
+                                        'latitude': float(lat) if lat else None,
+                                        'longitude': float(lng) if lng else None,
+                                        'business_name': fields.get('name', ''),
+                                        'business_type': fields.get('group_sic_code_name', 'Business'),
+                                        'source': 'mapquest_real_poi_search'
+                                    }
+                                    addresses.append(address_data)
+                            
+                            console.print(f"✅ Found {len(addresses)} REAL business addresses", style="green")
+                            return addresses
             
-            console.print(f"✅ Found {len(addresses)} addresses", style="green")
-            return addresses
+            # Fallback: return some real businesses from major cities
+            console.print("🌎 Using nationwide real business search as fallback", style="yellow")
+            fallback_address = self._get_real_business_fallback()
+            return [fallback_address] if fallback_address else []
             
         except Exception as e:
-            console.print(f"❌ Error searching addresses: {e}", style="red")
-            return []
+            console.print(f"❌ Error searching real addresses: {e}", style="red")
+            # Emergency fallback: return landmark addresses
+            landmark = self._get_landmark_address()
+            return [landmark] if landmark else []
     
     def get_address_suggestions(self, partial_address: str) -> List[str]:
         """
@@ -342,50 +617,15 @@ class MapQuestAddressManager:
     
     def get_random_us_address(self) -> Optional[Dict]:
         """
-        Get a random address from a major US city
+        Get a random REAL business address from a major US city
         
         Returns:
-            Random real US address
+            Random real US business address (never fake)
         """
-        # List of major US cities for random address generation
-        major_cities = [
-            "New York, NY",
-            "Los Angeles, CA", 
-            "Chicago, IL",
-            "Houston, TX",
-            "Phoenix, AZ",
-            "Philadelphia, PA",
-            "San Antonio, TX",
-            "San Diego, CA",
-            "Dallas, TX",
-            "San Jose, CA",
-            "Austin, TX",
-            "Jacksonville, FL",
-            "Fort Worth, TX",
-            "Columbus, OH",
-            "Charlotte, NC",
-            "San Francisco, CA",
-            "Indianapolis, IN",
-            "Seattle, WA",
-            "Denver, CO",
-            "Boston, MA",
-            "Nashville, TN",
-            "Memphis, TN",
-            "Portland, OR",
-            "Las Vegas, NV",
-            "Louisville, KY",
-            "Miami, FL",
-            "Atlanta, GA",
-            "Virginia Beach, VA",
-            "Oakland, CA",
-            "Minneapolis, MN"
-        ]
+        console.print("🇺🇸 Getting random REAL US business address...", style="cyan")
         
-        # Select random city and get address near it
-        random_city = random.choice(major_cities)
-        console.print(f"🎲 Getting random address near: {random_city}", style="cyan")
-        
-        return self.get_random_address_near_location(random_city, radius_miles=15.0)
+        # Use the real business fallback which searches nationwide
+        return self._get_real_business_fallback()
     
     def test_api_connection(self) -> bool:
         """Test MapQuest API connection and key validity"""
@@ -406,87 +646,49 @@ class MapQuestAddressManager:
             console.print(f"❌ MapQuest API connection failed: {e}", style="red")
             return False
     
-    def _ensure_house_number(self, street_address: str) -> str:
+    def _ensure_complete_real_address(self, address_data: Dict) -> Dict:
         """
-        Ensure a street address has a house number
+        Ensure address data is complete for real addresses
+        Does NOT generate fake components - only validates real ones
         
         Args:
-            street_address: Street address that may or may not have house number
+            address_data: Address data dictionary from real POI/business
             
         Returns:
-            Complete address with house number
-        """
-        street_address = street_address.strip()
-        
-        # Check if address already starts with a number
-        if street_address and street_address.split()[0].isdigit():
-            return street_address
-        
-        # Check if it starts with a number range (e.g., "100-200")
-        first_part = street_address.split()[0] if street_address else ""
-        if '-' in first_part and any(part.isdigit() for part in first_part.split('-')):
-            return street_address
-        
-        # If no house number, add a realistic one
-        if street_address:
-            house_number = random.randint(100, 9999)
-            return f"{house_number} {street_address}"
-        
-        # If completely empty, generate a full address
-        return self._generate_complete_street_address()
-    
-    def _generate_complete_street_address(self) -> str:
-        """
-        Generate a complete street address with house number
-        
-        Returns:
-            Complete street address with realistic house number
-        """
-        # Expanded list of realistic street names
-        street_names = [
-            # Common street names
-            "Main St", "Oak Ave", "Park Rd", "First St", "Second St", "Third St",
-            "Elm St", "Maple Ave", "Washington St", "Lincoln Ave", "Church St",
-            "School St", "High St", "Mill Rd", "Pine St", "Cedar Ave",
-            # More realistic street names
-            "Sunset Blvd", "River Dr", "Hill St", "Valley Rd", "Forest Ave",
-            "Lake Dr", "Mountain View Dr", "Garden St", "Spring St", "Summer Ave",
-            "Winter St", "Fall Rd", "Birch Ln", "Willow Way", "Cherry St",
-            "Peach Ave", "Apple Dr", "Orange St", "Lemon Ave", "Rose St",
-            # Directional variants
-            "North St", "South Ave", "East Dr", "West Rd", "Center St",
-            "Central Ave", "Broadway", "Park Ave", "State St", "Union St",
-            # Common suffixes with directions
-            "Jefferson Dr SW", "Madison Ave NE", "Adams St NW", "Monroe Dr SE",
-            "Jackson Blvd", "Harrison Ave", "Tyler St", "Polk Dr", "Taylor Ave"
-        ]
-        
-        house_number = random.randint(100, 9999)
-        street_name = random.choice(street_names)
-        return f"{house_number} {street_name}"
-    
-    def _validate_complete_address(self, address_data: Dict) -> Dict:
-        """
-        Validate that an address is complete and realistic
-        
-        Args:
-            address_data: Address data dictionary
-            
-        Returns:
-            Validated and potentially corrected address data
+            Validated real address data
         """
         if not address_data:
             return address_data
         
-        # Ensure address_line1 has house number
-        if 'address_line1' in address_data:
-            address_data['address_line1'] = self._ensure_house_number(address_data['address_line1'])
-            
-            # Rebuild full_address if it exists
-            if 'city' in address_data and 'state' in address_data and 'zip_code' in address_data:
-                address_data['full_address'] = f"{address_data['address_line1']}, {address_data['city']}, {address_data['state']} {address_data['zip_code']}"
+        # Ensure all required fields exist (but don't generate fake ones)
+        required_fields = ['address_line1', 'city', 'state', 'zip_code']
+        for field in required_fields:
+            if field not in address_data or not address_data[field]:
+                console.print(f"⚠️ Real address missing {field}, marking as incomplete", style="yellow")
+                address_data[field] = address_data.get(field, '')
+        
+        # Rebuild full_address if components exist
+        if all(address_data.get(field) for field in required_fields):
+            address_data['full_address'] = f"{address_data['address_line1']}, {address_data['city']}, {address_data['state']} {address_data['zip_code']}"
         
         return address_data
+    
+    def _validate_complete_address(self, address_data: Dict) -> Dict:
+        """
+        Validate that a REAL address is complete
+        Does NOT modify real address data - only validates it
+        
+        Args:
+            address_data: Real address data dictionary from POI/business
+            
+        Returns:
+            Validated real address data (unmodified)
+        """
+        if not address_data:
+            return address_data
+        
+        # Simply validate that it's a real address - don't modify it
+        return self._ensure_complete_real_address(address_data)
 
     def get_api_stats(self) -> Dict:
         """Get MapQuest API usage statistics"""
