@@ -1,13 +1,13 @@
 @echo off
 chcp 65001 >nul 2>&1
 
-:: Simple variable setup
+REM Simple variable setup
 set "SCRIPT_DIR=%~dp0"
-set "PYTHON_SCRIPT=%SCRIPT_DIR%main.py"
-set "VENV_PYTHON=%SCRIPT_DIR%.venv\Scripts\python.exe"
-set "DATA_DIR=%SCRIPT_DIR%customer_data"
+set "PYTHON_SCRIPT=%SCRIPT_DIR%\main.py"
+set "VENV_PYTHON=%SCRIPT_DIR%\.venv\Scripts\python.exe"
+set "DATA_DIR=%SCRIPT_DIR%\customer_data"
 
-:: Change to script directory
+REM Change to script directory
 cd /d "%SCRIPT_DIR%"
 
 echo ========================================
@@ -15,17 +15,19 @@ echo  CustomerDaisy - Customer Creation System
 echo ========================================
 echo.
 
-:: Create required directories
-if not exist "%DATA_DIR%" mkdir "%DATA_DIR%" >nul 2>&1
-if not exist "logs" mkdir "logs" >nul 2>&1
-if not exist "backups" mkdir "backups" >nul 2>&1
+REM Create required directories
+if not exist "%DATA_DIR%" mkdir "%DATA_DIR%"
+if not exist logs mkdir logs
+if not exist backups mkdir backups
+if not exist exports mkdir exports
 
-:: Check UV and sync dependencies first
+REM Check UV and sync dependencies first
 echo [INFO] Checking dependencies...
 uv --version >nul 2>&1
 if errorlevel 1 (
-    echo [WARNING] UV not found. Please run setup.bat first.
+    echo [WARNING] UV not found. Please run setup_fixed.bat first.
     pause
+    exit /b 1
 ) else (
     echo [INFO] Syncing dependencies with UV...
     uv sync --quiet
@@ -36,30 +38,33 @@ if errorlevel 1 (
     )
 )
 
-:: Find Python executable
+REM Find Python executable
 set "PYTHON_EXE="
 if exist "%VENV_PYTHON%" (
     set "PYTHON_EXE=%VENV_PYTHON%"
     echo [INFO] Using virtual environment python.
 ) else (
-    for %%P in (py python) do (
-        if not defined PYTHON_EXE (
-            %%P --version >nul 2>&1
-            if %errorlevel% equ 0 (
-                set "PYTHON_EXE=%%P"
-                echo [INFO] Using system python: %%P
-            )
+    REM Try common Python commands
+    python --version >nul 2>&1
+    if %errorlevel% equ 0 (
+        set "PYTHON_EXE=python"
+        echo [INFO] Using system python: python
+    ) else (
+        py --version >nul 2>&1
+        if %errorlevel% equ 0 (
+            set "PYTHON_EXE=py"
+            echo [INFO] Using system python: py
         )
     )
 )
 
 if not defined PYTHON_EXE (
-    echo [ERROR] Python not found. Please run setup.bat first.
+    echo [ERROR] Python not found. Please run setup_fixed.bat first.
     pause
     exit /b 1
 )
 
-:: Launch application
+REM Launch application
 echo [INFO] Launching CustomerDaisy...
 echo ========================================
 echo.
